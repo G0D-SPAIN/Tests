@@ -1,0 +1,4 @@
+start-process chrome.exe "www.youtube.com/watch?v=Ag8mgowTHPE -incognito"
+$x = 'Hola Ruth Cristina!!! Te quiero más que a nada en el mundo!!! Hasta dentro de un ratito!!! MUAK!!!';
+$x | out-file "$env:temp\testRC.txt";
+notepad.exe "$env:temp\testRC.txt";
