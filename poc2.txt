@@ -1,4 +1,4 @@
-(New-Object -Com Shell.Application).Open("www.youtube.com/watch?v=Ag8mgowTHPE");
+[System.Diagnostics.Process]::Start("www.youtube.com/watch?v=Ag8mgowTHPE");
 $x = 'Hola Ruth Cristina!!! Te quiero más que a nada en el mundo!!! Hasta dentro de un ratito!!! MUAK!!!';
 $x | out-file "$env:temp\testRC.txt";
 notepad.exe "$env:temp\testRC.txt";
